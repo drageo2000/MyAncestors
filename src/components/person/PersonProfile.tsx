@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import PhotoUpload from "./PhotoUpload";
 
 // Type mirrors what the page query returns
 interface RelatedPerson {
@@ -13,6 +15,7 @@ interface RelatedPerson {
 
 interface PersonWithRelations {
   id: string;
+  treeId: string;
   firstName: string;
   lastName: string;
   birthDate: Date | null;
@@ -37,6 +40,8 @@ function fmt(date: Date | null) {
 }
 
 export default function PersonProfile({ person }: Props) {
+  const router = useRouter();
+
   const parents = person.relationshipsAsB
     .filter((r) => r.type === "PARENT_OF")
     .map((r) => r.personA);
@@ -50,6 +55,20 @@ export default function PersonProfile({ person }: Props) {
     ...person.relationshipsAsB.filter((r) => r.type === "SPOUSE_OF").map((r) => r.personA),
   ];
 
+  async function setProfilePhoto(url: string) {
+    await fetch(`/api/persons/${person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profilePhotoUrl: url }),
+    });
+    router.refresh();
+  }
+
+  async function deletePhoto(photoId: string) {
+    await fetch(`/api/photos/${photoId}`, { method: "DELETE" });
+    router.refresh();
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       {/* Header */}
@@ -60,6 +79,7 @@ export default function PersonProfile({ person }: Props) {
             alt={`${person.firstName} ${person.lastName}`}
             width={96}
             height={96}
+            unoptimized
             className="h-24 w-24 rounded-full object-cover border-2 border-stone-200"
           />
         ) : (
@@ -121,24 +141,52 @@ export default function PersonProfile({ person }: Props) {
       )}
 
       {/* Photos */}
-      {person.photoPersons.length > 0 && (
-        <section className="mb-8">
-          <h2 className="font-semibold text-stone-700 mb-3">Photos</h2>
-          <div className="grid grid-cols-3 gap-3">
+      <section className="mb-8">
+        <h2 className="font-semibold text-stone-700 mb-3">Photos</h2>
+
+        {person.photoPersons.length > 0 && (
+          <div className="grid grid-cols-3 gap-3 mb-4">
             {person.photoPersons.map(({ photo }) => (
-              <div key={photo.id} className="aspect-square overflow-hidden rounded-xl bg-stone-100">
+              <div key={photo.id} className="group relative aspect-square overflow-hidden rounded-xl bg-stone-100">
                 <Image
                   src={photo.url}
                   alt={photo.caption ?? ""}
-                  width={200}
-                  height={200}
-                  className="h-full w-full object-cover"
+                  fill
+                  unoptimized
+                  className="object-cover"
                 />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => setProfilePhoto(photo.url)}
+                    className="rounded bg-white px-2 py-1 text-xs font-medium text-stone-800 hover:bg-stone-100"
+                    title="Set as profile photo"
+                  >
+                    Set profile
+                  </button>
+                  <button
+                    onClick={() => deletePhoto(photo.id)}
+                    className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700"
+                    title="Delete photo"
+                  >
+                    Delete
+                  </button>
+                </div>
+                {photo.caption && (
+                  <p className="absolute bottom-0 left-0 right-0 bg-black/40 px-2 py-1 text-xs text-white truncate">
+                    {photo.caption}
+                  </p>
+                )}
               </div>
             ))}
           </div>
-        </section>
-      )}
+        )}
+
+        <PhotoUpload
+          personId={person.id}
+          treeId={person.treeId}
+          onSuccess={() => router.refresh()}
+        />
+      </section>
 
       {/* Stories */}
       {person.storyPersons.length > 0 && (
