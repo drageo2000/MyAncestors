@@ -70,7 +70,10 @@ while IFS='|' read -r NUMBER TITLE BODY; do
     git worktree add "$WORKTREE" "$BRANCH" 2>/dev/null || true
   fi
 
-  PROMPT="You are working on GitHub issue #${NUMBER} in the MyAncestors genealogy app.
+  # Write prompt to a temp file to avoid shell escaping issues
+  PROMPT_FILE=$(mktemp /tmp/claude-issue-${NUMBER}.XXXXXX)
+  cat > "$PROMPT_FILE" <<PROMPT
+You are working on GitHub issue #${NUMBER} in the MyAncestors genealogy app.
 
 Issue: ${TITLE}
 
@@ -82,19 +85,20 @@ Instructions:
 - Implement the fix or feature described in the issue
 - Run 'npx tsc --noEmit' to verify no type errors
 - Commit your changes with message: 'fix: issue #${NUMBER} - ${TITLE}'
-- When done, run: gh pr create --repo ${REPO} --title 'fix: #${NUMBER} ${TITLE}' --body 'Closes #${NUMBER}' --base main"
+- When done, run: gh pr create --repo ${REPO} --title 'fix: #${NUMBER} ${TITLE}' --body 'Closes #${NUMBER}' --base main
+PROMPT
+
+  CMD="cd $WORKTREE && echo '=== Agent for Issue #${NUMBER}: ${TITLE} ===' && claude --print \"\$(cat $PROMPT_FILE)\""
 
   if [ "$PANE" -eq 0 ]; then
-    # First pane already exists
-    tmux send-keys -t "$SESSION:0.$PANE" "cd $WORKTREE && echo '=== Agent for Issue #${NUMBER}: ${TITLE} ===' && claude \"$PROMPT\"" Enter
+    tmux send-keys -t "$SESSION:0.$PANE" "$CMD" Enter
   else
-    # Split horizontally for 2nd agent, vertically for 3rd+
     if [ "$PANE" -eq 1 ]; then
       tmux split-window -h -t "$SESSION:0"
     else
       tmux split-window -v -t "$SESSION:0.$((PANE - 1))"
     fi
-    tmux send-keys -t "$SESSION:0.$PANE" "cd $WORKTREE && echo '=== Agent for Issue #${NUMBER}: ${TITLE} ===' && claude \"$PROMPT\"" Enter
+    tmux send-keys -t "$SESSION:0.$PANE" "$CMD" Enter
   fi
 
   # Set pane title
