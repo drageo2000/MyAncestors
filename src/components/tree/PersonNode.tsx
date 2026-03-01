@@ -3,6 +3,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
 
 type PersonNodeData = {
   firstName: string;
@@ -11,11 +12,26 @@ type PersonNodeData = {
   deathDate?: string;
   profilePhotoUrl?: string;
   isRoot?: boolean;
+  onAddParent?: () => void;
+  onAddChild?: () => void;
+  onAddSpouse?: () => void;
 };
 
 export default function PersonNode({ id, data }: NodeProps) {
-  const { firstName, lastName, birthDate, deathDate, profilePhotoUrl, isRoot } =
-    data as PersonNodeData;
+  const {
+    firstName,
+    lastName,
+    birthDate,
+    deathDate,
+    profilePhotoUrl,
+    isRoot,
+    onAddParent,
+    onAddChild,
+    onAddSpouse,
+  } = data as PersonNodeData;
+
+  const [hovered, setHovered] = useState(false);
+  const hasActions = onAddParent || onAddChild || onAddSpouse;
 
   const birthYear = birthDate ? new Date(birthDate).getFullYear() : null;
   const deathYear = deathDate ? new Date(deathDate).getFullYear() : null;
@@ -26,7 +42,11 @@ export default function PersonNode({ id, data }: NodeProps) {
     : null;
 
   return (
-    <>
+    <div
+      className="relative"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <Handle type="target" position={Position.Top} />
       <Link href={`/person/${id}`}>
         <div
@@ -58,6 +78,47 @@ export default function PersonNode({ id, data }: NodeProps) {
         </div>
       </Link>
       <Handle type="source" position={Position.Bottom} />
-    </>
+
+      {hasActions && hovered && (
+        <div
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex gap-1 z-20 nodrag nopan"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {onAddParent && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddParent();
+              }}
+              className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600 shadow-sm hover:bg-stone-50 hover:text-stone-900 transition-colors"
+            >
+              + Parent
+            </button>
+          )}
+          {onAddChild && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddChild();
+              }}
+              className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600 shadow-sm hover:bg-stone-50 hover:text-stone-900 transition-colors"
+            >
+              + Child
+            </button>
+          )}
+          {onAddSpouse && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddSpouse();
+              }}
+              className="rounded border border-stone-300 bg-white px-2 py-0.5 text-[10px] font-medium text-stone-600 shadow-sm hover:bg-stone-50 hover:text-stone-900 transition-colors"
+            >
+              + Spouse
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
