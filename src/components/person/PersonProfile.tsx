@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PhotoUpload from "./PhotoUpload";
 
@@ -49,6 +50,16 @@ export default function PersonProfile({
   isDemo = false,
 }: Props) {
   const router = useRouter();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const backPath = linkBase === "/demo/person" ? "/demo" : "/tree";
+
+  async function deletePerson() {
+    setDeleting(true);
+    await fetch(`${apiBase}/${person.id}`, { method: "DELETE" });
+    router.push(backPath);
+  }
 
   const parents = person.relationshipsAsB
     .filter((r) => r.type === "PARENT_OF")
@@ -95,10 +106,38 @@ export default function PersonProfile({
             👤
           </div>
         )}
-        <div>
-          <h1 className="font-serif text-4xl font-bold text-stone-900">
-            {person.firstName} {person.lastName}
-          </h1>
+        <div className="flex-1">
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="font-serif text-4xl font-bold text-stone-900">
+              {person.firstName} {person.lastName}
+            </h1>
+            {/* Delete */}
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="shrink-0 rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-400 hover:border-red-300 hover:text-red-500 transition-colors"
+              >
+                Delete
+              </button>
+            ) : (
+              <div className="shrink-0 flex items-center gap-2">
+                <span className="text-xs text-stone-500">Remove this person?</span>
+                <button
+                  onClick={deletePerson}
+                  disabled={deleting}
+                  className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-600 disabled:opacity-60 transition-colors"
+                >
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
           <div className="mt-2 flex flex-wrap gap-4 text-sm text-stone-500">
             {person.birthDate && <span>Born: {fmt(person.birthDate)}</span>}
             {person.deathDate && <span>Died: {fmt(person.deathDate)}</span>}

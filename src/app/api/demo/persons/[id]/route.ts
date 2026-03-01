@@ -25,6 +25,18 @@ export async function GET(_req: NextRequest, { params }: Params) {
   return ok(person);
 }
 
+export async function DELETE(_req: NextRequest, { params }: Params) {
+  const { id } = await params;
+
+  const person = await db.person.findFirst({
+    where: { id, treeId: DEMO_TREE_ID, deletedAt: null },
+  });
+  if (!person) return notFound("Person");
+
+  await db.person.update({ where: { id }, data: { deletedAt: new Date() } });
+  return ok({ id });
+}
+
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const body = await req.json();
