@@ -33,28 +33,31 @@ command -v claude >/dev/null 2>&1 || { echo "Error: claude not installed. Run: n
 
 # ── Fetch issues ──────────────────────────────────────────────────────────────
 echo "Fetching issues labeled '$LABEL' from $REPO..."
-ISSUES=$(gh issue list \
+ISSUE_JSON=$(gh issue list \
   --repo "$REPO" \
   --label "$LABEL" \
   --state open \
   --limit "$MAX_AGENTS" \
-  --json number,title,body \
-  --jq '.[] | "\(.number)|\(.title)|\(.body)"')
+  --json number,title,body)
 
-if [[ -z "$ISSUES" ]]; then
+ISSUE_COUNT=$(echo "$ISSUE_JSON" | jq length)
+
+if [[ "$ISSUE_COUNT" -eq 0 ]]; then
   echo "No open issues found with label '$LABEL'."
   echo "Label some issues at: https://github.com/$REPO/issues"
   exit 0
 fi
 
-ISSUE_COUNT=$(echo "$ISSUES" | wc -l | tr -d ' ')
+# Flatten body to single line to avoid newline issues in bash variables
+ISSUES=$(echo "$ISSUE_JSON" | jq -r '.[] | "\(.number)|\(.title)|\(.body | gsub("\n";" "))"')
+
 echo "Found $ISSUE_COUNT issue(s). Spinning up agents..."
 
 # ── Kill existing session if any ──────────────────────────────────────────────
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 
 # ── Create tmux session ───────────────────────────────────────────────────────
-tmux new-session -d -s "$SESSION" -x "$(tput cols)" -y "$(tput lines)"
+tmux new-session -d -s "$SESSION" -x 220 -y 50
 
 PANE=0
 while IFS='|' read -r NUMBER TITLE BODY; do
