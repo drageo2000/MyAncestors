@@ -39,6 +39,8 @@ export default function AddPersonModal({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [existingOtherParent, setExistingOtherParent] = useState<PersonSummary | null>(null);
+  const [linkAsSpouse, setLinkAsSpouse] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -50,8 +52,30 @@ export default function AddPersonModal({
       setRelationshipType(defaultRelationType ?? "child");
       setSelectedRelatedPersonId(relatedPersonId ?? "");
       setError(null);
+      setLinkAsSpouse(false);
+      setExistingOtherParent(null);
     }
   }, [isOpen, defaultRelationType, relatedPersonId]);
+
+  // When adding a parent, check if the child already has one parent — offer to link as spouses
+  useEffect(() => {
+    if (!isOpen || relationshipType !== "parent" || !relatedPersonId) {
+      setExistingOtherParent(null);
+      setLinkAsSpouse(false);
+      return;
+    }
+    fetch(`/api/persons/${relatedPersonId}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.data) {
+          const parents = (json.data.relationshipsAsB as { type: string; personA: PersonSummary }[])
+            .filter((r) => r.type === "PARENT_OF")
+            .map((r) => r.personA);
+          setExistingOtherParent(parents.length === 1 ? parents[0] : null);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, relationshipType, relatedPersonId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -128,6 +152,19 @@ export default function AddPersonModal({
         return;
       }
 
+      // Optionally link new parent as spouse of the existing parent
+      if (linkAsSpouse && existingOtherParent) {
+        await fetch("/api/relationships", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personAId: existingOtherParent.id,
+            personBId: newPersonId,
+            type: "SPOUSE_OF",
+          }),
+        });
+      }
+
       onSuccess();
       onClose();
     } catch {
@@ -198,6 +235,22 @@ export default function AddPersonModal({
               </select>
             )}
           </div>
+
+          {/* Spouse link hint — shown when adding a 2nd parent */}
+          {relationshipType === "parent" && existingOtherParent && (
+            <label className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={linkAsSpouse}
+                onChange={(e) => setLinkAsSpouse(e.target.checked)}
+                className="h-4 w-4 rounded border-stone-300 accent-amber-500"
+              />
+              Also link as spouse of{" "}
+              <span className="font-medium">
+                {existingOtherParent.firstName} {existingOtherParent.lastName}
+              </span>
+            </label>
+          )}
 
           {/* Name */}
           <div className="grid grid-cols-2 gap-3">
