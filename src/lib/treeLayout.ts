@@ -93,6 +93,31 @@ export function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
     }
   }
 
+  // Second pass: center children who have 2 parents but NO SPOUSE_OF edge between them.
+  // (The SPOUSE_OF loop above already handled coupled parents; this covers unlinked pairs.)
+  const explicitSpousePairs = new Set(
+    spouseEdges.flatMap((e) => [`${e.source}|${e.target}`, `${e.target}|${e.source}`])
+  );
+  const realParentEdges = edges.filter(
+    (e) => (e.data as RelEdgeData)?.relType === "PARENT_OF" && !e.id.startsWith("syn-")
+  );
+  const childToParents = new Map<string, string[]>();
+  realParentEdges.forEach((e) => {
+    const list = childToParents.get(e.target) ?? [];
+    if (!list.includes(e.source)) list.push(e.source);
+    childToParents.set(e.target, list);
+  });
+  childToParents.forEach((parents, childId) => {
+    if (parents.length !== 2) return;
+    const [a, b] = parents;
+    if (explicitSpousePairs.has(`${a}|${b}`)) return; // already handled above
+    const aPos = pos.get(a);
+    const bPos = pos.get(b);
+    const childPos = pos.get(childId);
+    if (!aPos || !bPos || !childPos) return;
+    childPos.x = (aPos.x + bPos.x) / 2;
+  });
+
   return nodes.map((node) => {
     const p = pos.get(node.id) ?? { x: 0, y: 0 };
     return {
