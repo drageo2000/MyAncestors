@@ -20,6 +20,10 @@
 # production
 /build
 
+# uploaded photos (local stub — swap for S3 in production)
+/public/uploads/photos/*
+!/public/uploads/photos/.gitkeep
+
 # misc
 .DS_Store
 *.pem
