@@ -80,8 +80,8 @@ export default function PersonNode({ id, data }: NodeProps) {
       <Handle type="source" position={Position.Bottom} />
 
       {hasActions && hovered && (
-        <div
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 flex gap-1 z-20 nodrag nopan"
+        /* Transparent bridge covers the gap so onMouseLeave doesn't fire mid-move */
+        <div className="absolute top-full left-0 w-full pt-2 z-20 nodrag nopan flex justify-center"
           onClick={(e) => e.stopPropagation()}
         >
           {onAddParent && (

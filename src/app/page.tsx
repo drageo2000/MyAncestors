@@ -5,7 +5,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
       <span className="mb-6 text-7xl">🌳</span>
-      <h1 className="font-serif text-5xl font-bold tracking-tight text-stone-900 sm:text-6xl">
+      <h1 className="font-serif text-5xl font-bold tracking-tight text-lime-600 sm:text-6xl">
         MyAncestors
       </h1>
       <p className="mt-4 max-w-xl text-lg text-stone-500">
