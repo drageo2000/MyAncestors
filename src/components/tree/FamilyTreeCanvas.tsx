@@ -12,14 +12,11 @@ import {
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import dagre from "@dagrejs/dagre";
 import PersonNode from "./PersonNode";
 import AddPersonModal from "./AddPersonModal";
+import { applyDagreLayout, styleEdges, buildSyntheticEdges } from "@/lib/treeLayout";
 
 const nodeTypes = { personNode: PersonNode };
-
-const NODE_WIDTH = 160;
-const NODE_HEIGHT = 120;
 
 type PersonSummary = { id: string; firstName: string; lastName: string };
 
@@ -28,57 +25,6 @@ type ModalConfig = {
   relatedPersonName?: string;
   relationshipType?: "parent" | "child" | "spouse";
 };
-
-function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
-  if (nodes.length === 0) return nodes;
-
-  const g = new dagre.graphlib.Graph();
-  g.setDefaultEdgeLabel(() => ({}));
-  g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 60 });
-
-  nodes.forEach((node) => {
-    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-  });
-
-  edges.forEach((edge) => {
-    const relType = (edge.data as { relType?: string } | undefined)?.relType;
-    // Only PARENT_OF edges drive the hierarchical layout
-    if (relType === "PARENT_OF") {
-      g.setEdge(edge.source, edge.target);
-    }
-  });
-
-  dagre.layout(g);
-
-  return nodes.map((node) => {
-    const n = g.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: (n?.x ?? 0) - NODE_WIDTH / 2,
-        y: (n?.y ?? 0) - NODE_HEIGHT / 2,
-      },
-    };
-  });
-}
-
-function styleEdges(edges: Edge[]): Edge[] {
-  return edges.map((edge) => {
-    const relType = (edge.data as { relType?: string } | undefined)?.relType;
-    if (relType === "SPOUSE_OF") {
-      return {
-        ...edge,
-        style: { strokeDasharray: "6 3", stroke: "#d97706", strokeWidth: 2 },
-        label: "spouse",
-        labelStyle: { fontSize: 10, fill: "#d97706" },
-      };
-    }
-    return {
-      ...edge,
-      style: { stroke: "#78716c", strokeWidth: 2 },
-    };
-  });
-}
 
 interface Props {
   rootPersonId: string | null;
@@ -116,7 +62,10 @@ export default function FamilyTreeCanvas({ rootPersonId, treeId }: Props) {
           setError(json.error);
           return;
         }
-        const rawEdges = json.data.edges as Edge[];
+        const rawEdges = [
+          ...(json.data.edges as Edge[]),
+          ...buildSyntheticEdges(json.data.edges as Edge[]),
+        ];
         const enhanced = (json.data.nodes as Node[]).map((node) => ({
           ...node,
           data: {

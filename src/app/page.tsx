@@ -14,6 +14,12 @@ export default function Home() {
       </p>
 
       <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row">
+          <Link
+            href="/demo"
+            className="rounded-full border border-lime-400 bg-lime-50 px-8 py-3 text-sm font-medium text-lime-800 hover:bg-lime-100 transition-colors"
+          >
+            🌳 Test Tree
+          </Link>
         <SignedOut>
           <Link
             href="/sign-up"

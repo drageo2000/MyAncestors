@@ -32,6 +32,9 @@ interface PersonWithRelations {
 
 interface Props {
   person: PersonWithRelations;
+  linkBase?: string;
+  apiBase?: string;
+  isDemo?: boolean;
 }
 
 function fmt(date: Date | null) {
@@ -39,7 +42,12 @@ function fmt(date: Date | null) {
   return new Date(date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 }
 
-export default function PersonProfile({ person }: Props) {
+export default function PersonProfile({
+  person,
+  linkBase = "/person",
+  apiBase = "/api/persons",
+  isDemo = false,
+}: Props) {
   const router = useRouter();
 
   const parents = person.relationshipsAsB
@@ -56,7 +64,7 @@ export default function PersonProfile({ person }: Props) {
   ];
 
   async function setProfilePhoto(url: string) {
-    await fetch(`/api/persons/${person.id}`, {
+    await fetch(`${apiBase}/${person.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profilePhotoUrl: url }),
@@ -124,7 +132,7 @@ export default function PersonProfile({ person }: Props) {
                     {people.map((p) => (
                       <li key={p.id}>
                         <Link
-                          href={`/person/${p.id}`}
+                          href={`${linkBase}/${p.id}`}
                           className="flex items-center gap-2 text-sm text-stone-800 hover:text-stone-500"
                         >
                           <span className="text-base">👤</span>
@@ -181,11 +189,23 @@ export default function PersonProfile({ person }: Props) {
           </div>
         )}
 
-        <PhotoUpload
-          personId={person.id}
-          treeId={person.treeId}
-          onSuccess={() => router.refresh()}
-        />
+        {isDemo ? (
+          <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 px-4 py-5 text-center">
+            <p className="text-sm text-stone-400 mb-2">Photo upload is available on your own tree.</p>
+            <Link
+              href="/sign-up"
+              className="text-xs font-medium text-amber-700 hover:underline"
+            >
+              Create a free account →
+            </Link>
+          </div>
+        ) : (
+          <PhotoUpload
+            personId={person.id}
+            treeId={person.treeId}
+            onSuccess={() => router.refresh()}
+          />
+        )}
       </section>
 
       {/* Stories */}

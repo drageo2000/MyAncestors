@@ -12,6 +12,7 @@ type PersonNodeData = {
   deathDate?: string;
   profilePhotoUrl?: string;
   isRoot?: boolean;
+  personLinkBase?: string;
   onAddParent?: () => void;
   onAddChild?: () => void;
   onAddSpouse?: () => void;
@@ -25,6 +26,7 @@ export default function PersonNode({ id, data }: NodeProps) {
     deathDate,
     profilePhotoUrl,
     isRoot,
+    personLinkBase = "/person",
     onAddParent,
     onAddChild,
     onAddSpouse,
@@ -47,8 +49,10 @@ export default function PersonNode({ id, data }: NodeProps) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Handle type="target" position={Position.Top} />
-      <Link href={`/person/${id}`}>
+      <Handle type="target" position={Position.Top} id="top" />
+      <Handle type="source" position={Position.Right} id="right" style={{ top: "50%" }} />
+      <Handle type="target" position={Position.Left} id="left" style={{ top: "50%" }} />
+      <Link href={`${personLinkBase}/${id}`}>
         <div
           className={`flex flex-col items-center gap-2 rounded-2xl border bg-white px-4 py-3 shadow-sm w-36 cursor-pointer hover:shadow-md transition-shadow ${
             isRoot ? "border-amber-400 ring-2 ring-amber-200" : "border-stone-200"
@@ -77,7 +81,7 @@ export default function PersonNode({ id, data }: NodeProps) {
           </div>
         </div>
       </Link>
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={Position.Bottom} id="bottom" />
 
       {hasActions && hovered && (
         /* Transparent bridge covers the gap so onMouseLeave doesn't fire mid-move */
