@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { ok, err, unauthorized } from "@/lib/api";
@@ -33,9 +33,12 @@ export async function POST(req: NextRequest) {
   if (!name) return err("name is required");
 
   // Ensure the user exists in our DB
+  const clerkUser = await currentUser();
+  const email = clerkUser?.emailAddresses?.[0]?.emailAddress ?? "";
+  const displayName = clerkUser?.fullName ?? clerkUser?.username ?? undefined;
   await db.user.upsert({
     where: { id: userId },
-    create: { id: userId, email: body.email ?? "", name: body.name },
+    create: { id: userId, email, name: displayName },
     update: {},
   });
 

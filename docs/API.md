@@ -11,10 +11,23 @@ Legend: ✅ implemented · 🚧 planned
 
 ```
 ✅ POST   /api/trees              — Create a new tree (seeds the root person in a transaction)
-✅ GET    /api/trees              — List trees for current user
+✅ GET    /api/trees              — List trees for current user (includes person count)
 🚧 GET    /api/trees/:id          — Get tree metadata
 🚧 PATCH  /api/trees/:id          — Update tree name
 🚧 DELETE /api/trees/:id          — Delete tree (and all persons/stories/photos)
+```
+
+Request body (POST):
+```json
+{
+  "name": "string (required)",
+  "rootFirstName": "string",
+  "rootLastName": "string",
+  "rootBirthDate": "ISO date string",
+  "rootBirthPlace": "string",
+  "rootGender": "MALE | FEMALE | OTHER | UNKNOWN",
+  "email": "string (for User upsert)"
+}
 ```
 
 ---
@@ -22,23 +35,38 @@ Legend: ✅ implemented · 🚧 planned
 ## Persons
 
 ```
+✅ GET    /api/persons?treeId=    — List persons in a tree (returns id, firstName, lastName)
 ✅ POST   /api/persons            — Create a person (with tree ownership check)
-✅ GET    /api/persons/:id        — Get person + their relationships
-✅ PATCH  /api/persons/:id        — Update person fields
+✅ GET    /api/persons/:id        — Get person + relationships (both directions)
+✅ PATCH  /api/persons/:id        — Update person fields (including profilePhotoUrl)
 ✅ DELETE /api/persons/:id        — Soft-delete person (sets deletedAt)
 ```
 
-Request body (POST/PATCH):
+Request body (POST):
 ```json
 {
-  "treeId": "string",
+  "treeId": "string (required)",
+  "firstName": "string (required)",
+  "lastName": "string (required)",
+  "birthDate": "ISO date string",
+  "deathDate": "ISO date string | null",
+  "birthPlace": "string",
+  "gender": "MALE | FEMALE | OTHER | UNKNOWN",
+  "bio": "string"
+}
+```
+
+Request body (PATCH):
+```json
+{
   "firstName": "string",
   "lastName": "string",
   "birthDate": "ISO date string",
   "deathDate": "ISO date string | null",
   "birthPlace": "string",
   "gender": "MALE | FEMALE | OTHER | UNKNOWN",
-  "bio": "string"
+  "bio": "string",
+  "profilePhotoUrl": "string"
 }
 ```
 
@@ -49,27 +77,94 @@ Request body (POST/PATCH):
 ```
 ✅ POST   /api/relationships      — Link two persons (PARENT_OF or SPOUSE_OF)
 🚧 DELETE /api/relationships/:id  — Remove relationship
-✅ GET    /api/tree/:personId     — Get full family graph from a root person
 ```
 
 Request body (POST):
 ```json
 {
-  "personAId": "string",
-  "personBId": "string",
-  "type": "PARENT_OF | SPOUSE_OF"
+  "personAId": "string (required)",
+  "personBId": "string (required)",
+  "type": "PARENT_OF | SPOUSE_OF (required)"
 }
 ```
 
-Tree response (GET /api/tree/:personId):
+Notes:
+- For PARENT_OF: personA is the parent, personB is the child
+- Both persons must belong to the same tree
+- Unique constraint on [personAId, personBId, type]
+
+---
+
+## Tree Graph
+
+```
+✅ GET    /api/tree/:personId     — Get full family graph from a root person
+```
+
+Response:
 ```json
 {
   "data": {
-    "nodes": [{ "id": "...", "firstName": "...", "lastName": "...", "profilePhotoUrl": "..." }],
-    "edges": [{ "id": "...", "source": "...", "target": "...", "type": "PARENT_OF" }]
+    "nodes": [
+      {
+        "id": "...",
+        "type": "personNode",
+        "position": { "x": 0, "y": 0 },
+        "data": {
+          "firstName": "...",
+          "lastName": "...",
+          "birthDate": "...",
+          "deathDate": "...",
+          "profilePhotoUrl": "...",
+          "isRoot": true
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "...",
+        "source": "personAId",
+        "target": "personBId",
+        "type": "PARENT_OF | SPOUSE_OF"
+      }
+    ]
   }
 }
 ```
+
+Notes:
+- Returns all persons in the tree (not just ancestors/descendants of the root)
+- Excludes soft-deleted persons
+- Node positions are `{ x: 0, y: 0 }` — layout computed client-side by dagre
+
+---
+
+## Photos
+
+```
+✅ POST   /api/photos/upload      — Upload image file to Cloudflare R2 (multipart form data)
+✅ POST   /api/photos             — Save photo metadata + link to persons
+✅ GET    /api/photos             — List photos (filter: ?personId= or ?treeId=)
+✅ DELETE /api/photos/:id         — Delete photo (metadata + R2 file)
+```
+
+Upload request (POST /api/photos/upload):
+- Content-Type: `multipart/form-data`
+- Field: `file` (JPEG, PNG, or WebP, max 5MB)
+- Response: `{ data: { url: "https://r2-public-url/userId/uuid.ext" } }`
+
+Metadata request (POST /api/photos):
+```json
+{
+  "url": "string (required — from upload response)",
+  "treeId": "string (required)",
+  "personIds": ["string"] ,
+  "caption": "string (optional)"
+}
+```
+
+List request (GET /api/photos):
+- Query params: `?personId=` or `?treeId=` (at least one required)
 
 ---
 
@@ -83,16 +178,7 @@ Tree response (GET /api/tree/:personId):
 🚧 DELETE /api/stories/:id        — Delete story
 ```
 
----
-
-## Photos
-
-```
-🚧 POST   /api/photos/upload-url  — Get presigned S3 URL for upload
-🚧 POST   /api/photos             — Save photo metadata after upload
-🚧 GET    /api/photos             — List photos (filter: ?personId=, ?treeId=)
-🚧 DELETE /api/photos/:id         — Delete photo (and S3 object)
-```
+Note: Stories page exists and reads from DB (server component), but no creation/editing API routes yet.
 
 ---
 

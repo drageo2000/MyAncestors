@@ -16,41 +16,47 @@
 ## Data Model
 
 ```
+User
+  id (Clerk ID), email, name, createdAt
+
 Tree
-  id, name, ownerId (userId), createdAt
+  id, name, ownerId (userId), createdAt, updatedAt
 
 Person
   id, treeId, firstName, lastName, birthDate, deathDate, birthPlace
-  bio, gender, profilePhotoUrl, createdAt, deletedAt (soft delete)
+  bio, gender (MALE|FEMALE|OTHER|UNKNOWN), profilePhotoUrl
+  createdAt, updatedAt, deletedAt (soft delete)
 
 Relationship
   id, personAId, personBId
   type: "PARENT_OF" | "SPOUSE_OF"
+  unique constraint: [personAId, personBId, type]
 
 Story
   id, treeId, authorId, title, content (rich text), audioUrl
   personIds[] (many-to-many via StoryPerson join table)
-  createdAt
+  createdAt, updatedAt
 
 Photo
-  id, treeId, url, caption, takenAt, uploadedBy
+  id, treeId, url, caption, takenAt, uploadedById
   personIds[] (many-to-many via PhotoPerson join table)
+  createdAt
 ```
 
 ## Feature Breakdown
 
 ### P0 — MVP (must ship)
-- [x] Auth: sign up / login (Clerk) — integrated via @clerk/nextjs + proxy.ts
-- [x] Create and name a family tree — `POST /api/trees` creates tree + root person
-- [x] Add persons to tree with basic fields — `POST /api/persons`
-- [x] Link relationships: parent/child, spouse — `POST /api/relationships`
-- [x] Interactive tree visualization (@xyflow/react) — FamilyTreeCanvas + PersonNode components scaffolded
-- [x] Person profile page with photo + bio — PersonProfile component + `/person/[id]` page scaffolded
-- [ ] Photo upload to S3 — API route scaffolded; S3 integration not yet wired up
+- [x] Auth: sign up / login (Clerk) — sign-in/sign-up pages, proxy.ts middleware, route protection
+- [x] Create and name a family tree — onboarding flow (2-step: name tree → about you)
+- [x] Add persons to tree with basic fields — AddPersonModal on tree canvas
+- [x] Link relationships: parent/child, spouse — modal creates person + relationship in one flow
+- [x] Interactive tree visualization (@xyflow/react) — FamilyTreeCanvas with dagre layout, edge styling
+- [x] Person profile page with photo + bio — PersonProfile with family links, photos, stories
+- [x] Photo upload to Cloudflare R2 — server-side multipart upload, client-side compression, gallery with set-profile/delete actions
 
 ### P1 — Core value
-- [ ] Story recording (rich text editor) — `/api/stories` endpoint planned; UI not built
-- [ ] Photo gallery with multiple photos per person
+- [ ] Story recording (rich text editor) — stories page lists existing stories, but creation/editing UI not built
+- [ ] Photo gallery with multiple photos per person — basic gallery exists, needs lightbox/expanded view
 - [ ] Timeline view per person (birth → life events → death)
 - [ ] GEDCOM file import
 - [ ] Search persons within a tree
@@ -64,10 +70,13 @@ Photo
 - [ ] Export tree as PDF / GEDCOM
 
 ## API Endpoints (see docs/API.md for full reference)
-- `/api/trees` — CRUD trees
-- `/api/persons` — CRUD persons
-- `/api/relationships` — link/unlink persons
-- `/api/tree/:personId` — get full family tree graph
+- `/api/trees` — CRUD trees (GET list, POST create with root person)
+- `/api/persons` — CRUD persons (GET list by treeId, POST create)
+- `/api/persons/:id` — GET/PATCH/DELETE (soft-delete) single person
+- `/api/relationships` — POST to link two persons
+- `/api/tree/:personId` — GET full family tree graph as { nodes, edges }
+- `/api/photos` — GET list (by personId or treeId), POST create metadata
+- `/api/photos/upload` — POST multipart file upload to R2
+- `/api/photos/:id` — DELETE photo (metadata + R2 file)
 - `/api/stories` — CRUD stories (planned)
-- `/api/photos` — upload / list / delete photos (planned)
 - `/api/import/gedcom` — GEDCOM file import (planned)
