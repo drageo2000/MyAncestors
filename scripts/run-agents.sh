@@ -88,7 +88,7 @@ Instructions:
 - When done, run: gh pr create --repo ${REPO} --title 'fix: #${NUMBER} ${TITLE}' --body 'Closes #${NUMBER}' --base main
 PROMPT
 
-  CMD="cd $WORKTREE && echo '=== Agent for Issue #${NUMBER}: ${TITLE} ===' && claude --print \"\$(cat $PROMPT_FILE)\""
+  CMD="cd $WORKTREE && echo '=== Agent for Issue #${NUMBER}: ${TITLE} ===' && claude \"\$(cat $PROMPT_FILE)\""
 
   if [ "$PANE" -eq 0 ]; then
     tmux send-keys -t "$SESSION:0.$PANE" "$CMD" Enter
