@@ -10,6 +10,7 @@ import {
   useEdgesState,
   type Node,
   type Edge,
+  type Connection,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import PersonNode from "./PersonNode";
@@ -135,6 +136,31 @@ export default function FamilyTreeCanvas({ rootPersonId, treeId }: Props) {
     await loadGraph(rootPersonId);
   }, [treeId, rootPersonId, loadGraph]);
 
+  // Drag right-handle → left-handle to create a SPOUSE_OF relationship
+  const isValidConnection = useCallback(
+    (connection: Connection) =>
+      connection.sourceHandle === "right" && connection.targetHandle === "left",
+    []
+  );
+
+  const onConnect = useCallback(
+    async (connection: Connection) => {
+      if (connection.sourceHandle !== "right" || connection.targetHandle !== "left") return;
+      if (!connection.source || !connection.target) return;
+      await fetch("/api/relationships", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personAId: connection.source,
+          personBId: connection.target,
+          type: "SPOUSE_OF",
+        }),
+      });
+      if (rootPersonId) await loadGraph(rootPersonId);
+    },
+    [rootPersonId, loadGraph]
+  );
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center text-stone-400">
@@ -182,6 +208,9 @@ export default function FamilyTreeCanvas({ rootPersonId, treeId }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
+        onConnect={onConnect}
+        isValidConnection={isValidConnection}
+        connectionLineStyle={{ stroke: "#ef4444", strokeWidth: 2, strokeDasharray: "4 4" }}
         fitView
         className="bg-stone-50"
       >
