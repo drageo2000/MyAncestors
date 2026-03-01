@@ -138,7 +138,7 @@ export default function FamilyTreeCanvas({ rootPersonId, treeId }: Props) {
 
   // Drag right-handle → left-handle to create a SPOUSE_OF relationship
   const isValidConnection = useCallback(
-    (connection: Connection) =>
+    (connection: Edge | Connection) =>
       connection.sourceHandle === "right" && connection.targetHandle === "left",
     []
   );
