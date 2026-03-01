@@ -3,6 +3,8 @@ primary_region = "iad"
 
 [build]
   dockerfile = "Dockerfile"
+  [build.args]
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_ZXRlcm5hbC1sYWR5YnVnLTQ3LmNsZXJrLmFjY291bnRzLmRldiQ"
 
 [deploy]
   release_command = "node node_modules/prisma/build/index.js migrate deploy"
