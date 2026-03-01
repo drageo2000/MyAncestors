@@ -2,6 +2,8 @@
 
 Personal genealogy tracker — family tree mapping, photo uploads, story recording, and heritage discovery.
 
+**Live app: https://myancestors.fly.dev**
+
 ## Features
 
 - **Family Tree Visualization** — interactive graph powered by @xyflow/react
