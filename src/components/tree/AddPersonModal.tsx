@@ -26,19 +26,11 @@ export default function AddPersonModal({
   defaultRelationType,
   persons = [],
 }: Props) {
-  // "new" = create a new person | "existing" = link someone already in the tree
-  const [mode, setMode] = useState<"new" | "existing">("new");
-
-  // New-person fields
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [birthPlace, setBirthPlace] = useState("");
   const [gender, setGender] = useState("UNKNOWN");
-
-  // Link-existing field
-  const [linkPersonId, setLinkPersonId] = useState("");
-
   const [relationshipType, setRelationshipType] = useState<RelationshipType>(
     defaultRelationType ?? "child"
   );
@@ -52,13 +44,11 @@ export default function AddPersonModal({
 
   useEffect(() => {
     if (isOpen) {
-      setMode("new");
       setFirstName("");
       setLastName("");
       setBirthDate("");
       setBirthPlace("");
       setGender("UNKNOWN");
-      setLinkPersonId("");
       setRelationshipType(defaultRelationType ?? "child");
       setSelectedRelatedPersonId(relatedPersonId ?? "");
       setError(null);
@@ -95,14 +85,13 @@ export default function AddPersonModal({
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
 
-  // Persons available to link (exclude the anchor person)
-  const linkablePeople = persons.filter((p) => p.id !== (relatedPersonId ?? selectedRelatedPersonId));
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const anchorId = relatedPersonId ?? selectedRelatedPersonId;
-
-    if (!anchorId) {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("First name and last name are required.");
+      return;
+    }
+    if (!selectedRelatedPersonId) {
       setError("Please select a related person.");
       return;
     }
@@ -111,39 +100,24 @@ export default function AddPersonModal({
     setError(null);
 
     try {
-      let targetPersonId: string;
-
-      if (mode === "existing") {
-        // ── Link existing person ──────────────────────────────────────────
-        if (!linkPersonId) {
-          setError("Please select a person to link.");
-          setLoading(false);
-          return;
-        }
-        targetPersonId = linkPersonId;
-      } else {
-        // ── Create new person ────────────────────────────────────────────
-        if (!firstName.trim() || !lastName.trim()) {
-          setError("First name and last name are required.");
-          setLoading(false);
-          return;
-        }
-        const personRes = await fetch("/api/persons", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            treeId,
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            birthDate: birthDate || undefined,
-            birthPlace: birthPlace.trim() || undefined,
-            gender,
-          }),
-        });
-        const personJson = await personRes.json();
-        if (personJson.error) { setError(personJson.error); return; }
-        targetPersonId = personJson.data.id;
+      const personRes = await fetch("/api/persons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          treeId,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          birthDate: birthDate || undefined,
+          birthPlace: birthPlace.trim() || undefined,
+          gender,
+        }),
+      });
+      const personJson = await personRes.json();
+      if (personJson.error) {
+        setError(personJson.error);
+        return;
       }
+      const newPersonId: string = personJson.data.id;
 
       // Determine relationship direction
       let personAId: string;
@@ -151,16 +125,16 @@ export default function AddPersonModal({
       let relType: "PARENT_OF" | "SPOUSE_OF";
 
       if (relationshipType === "parent") {
-        personAId = targetPersonId;
-        personBId = anchorId;
+        personAId = newPersonId;
+        personBId = selectedRelatedPersonId;
         relType = "PARENT_OF";
       } else if (relationshipType === "child") {
-        personAId = anchorId;
-        personBId = targetPersonId;
+        personAId = selectedRelatedPersonId;
+        personBId = newPersonId;
         relType = "PARENT_OF";
       } else {
-        personAId = anchorId;
-        personBId = targetPersonId;
+        personAId = selectedRelatedPersonId;
+        personBId = newPersonId;
         relType = "SPOUSE_OF";
       }
 
@@ -170,16 +144,19 @@ export default function AddPersonModal({
         body: JSON.stringify({ personAId, personBId, type: relType }),
       });
       const relJson = await relRes.json();
-      if (relJson.error) { setError(relJson.error); return; }
+      if (relJson.error) {
+        setError(relJson.error);
+        return;
+      }
 
-      // Optionally link new parent as spouse of the existing parent (new-person mode only)
-      if (mode === "new" && linkAsSpouse && existingOtherParent) {
+      // Optionally link new parent as spouse of the existing parent
+      if (linkAsSpouse && existingOtherParent) {
         await fetch("/api/relationships", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             personAId: existingOtherParent.id,
-            personBId: targetPersonId,
+            personBId: newPersonId,
             type: "SPOUSE_OF",
           }),
         });
@@ -208,32 +185,6 @@ export default function AddPersonModal({
         <h2 className="mb-5 text-lg font-semibold text-stone-800">Add Person</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Mode toggle */}
-          <div className="flex rounded-lg border border-stone-200 overflow-hidden text-sm font-medium">
-            <button
-              type="button"
-              onClick={() => setMode("new")}
-              className={`flex-1 py-1.5 transition-colors ${
-                mode === "new"
-                  ? "bg-stone-800 text-white"
-                  : "text-stone-500 hover:bg-stone-50"
-              }`}
-            >
-              Create new
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("existing")}
-              className={`flex-1 py-1.5 transition-colors ${
-                mode === "existing"
-                  ? "bg-stone-800 text-white"
-                  : "text-stone-500 hover:bg-stone-50"
-              }`}
-            >
-              Link existing
-            </button>
-          </div>
-
           {/* Relationship type */}
           <div>
             <label className="mb-1 block text-sm font-medium text-stone-700">
@@ -282,119 +233,95 @@ export default function AddPersonModal({
             )}
           </div>
 
-          {/* ── Link existing mode ── */}
-          {mode === "existing" && (
+          {/* Spouse link hint — shown when adding a 2nd parent */}
+          {relationshipType === "parent" && existingOtherParent && (
+            <label className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={linkAsSpouse}
+                onChange={(e) => setLinkAsSpouse(e.target.checked)}
+                className="h-4 w-4 rounded border-stone-300 accent-amber-500"
+              />
+              Also link as spouse of{" "}
+              <span className="font-medium">
+                {existingOtherParent.firstName} {existingOtherParent.lastName}
+              </span>
+            </label>
+          )}
+
+          {/* Name */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-sm font-medium text-stone-700">
-                Person in this tree
+                First Name <span className="text-red-400">*</span>
               </label>
-              <select
-                value={linkPersonId}
-                onChange={(e) => setLinkPersonId(e.target.value)}
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First name"
                 className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-              >
-                <option value="">Select a person...</option>
-                {linkablePeople.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.firstName} {p.lastName}
-                  </option>
-                ))}
-              </select>
+                required
+              />
             </div>
-          )}
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700">
+                Last Name <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last name"
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+                required
+              />
+            </div>
+          </div>
 
-          {/* ── New person fields ── */}
-          {mode === "new" && (
-            <>
-              {/* Spouse link hint — shown when adding a 2nd parent */}
-              {relationshipType === "parent" && existingOtherParent && (
-                <label className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={linkAsSpouse}
-                    onChange={(e) => setLinkAsSpouse(e.target.checked)}
-                    className="h-4 w-4 rounded border-stone-300 accent-amber-500"
-                  />
-                  Also link as spouse of{" "}
-                  <span className="font-medium">
-                    {existingOtherParent.firstName} {existingOtherParent.lastName}
-                  </span>
-                </label>
-              )}
+          {/* Birth Date & Place */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700">
+                Birth Date
+              </label>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-stone-700">
+                Birth Place
+              </label>
+              <input
+                type="text"
+                value={birthPlace}
+                onChange={(e) => setBirthPlace(e.target.value)}
+                placeholder="City, Country"
+                className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              />
+            </div>
+          </div>
 
-              {/* Name */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-stone-700">
-                    First Name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="First name"
-                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-stone-700">
-                    Last Name <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Last name"
-                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
-              </div>
-
-              {/* Birth Date & Place */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-stone-700">
-                    Birth Date
-                  </label>
-                  <input
-                    type="date"
-                    value={birthDate}
-                    onChange={(e) => setBirthDate(e.target.value)}
-                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-stone-700">
-                    Birth Place
-                  </label>
-                  <input
-                    type="text"
-                    value={birthPlace}
-                    onChange={(e) => setBirthPlace(e.target.value)}
-                    placeholder="City, Country"
-                    className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                  />
-                </div>
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label className="mb-1 block text-sm font-medium text-stone-700">
-                  Gender
-                </label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
-                >
-                  <option value="UNKNOWN">Unknown</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-            </>
-          )}
+          {/* Gender */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-stone-700">
+              Gender
+            </label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="w-full rounded-lg border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            >
+              <option value="UNKNOWN">Unknown</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -411,7 +338,7 @@ export default function AddPersonModal({
               disabled={loading}
               className="flex-1 rounded-lg bg-amber-500 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:opacity-60"
             >
-              {loading ? "Saving..." : mode === "existing" ? "Link Person" : "Add Person"}
+              {loading ? "Adding..." : "Add Person"}
             </button>
           </div>
         </form>
