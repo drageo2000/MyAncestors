@@ -12,7 +12,7 @@ set -e
 
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO="drageo2000/MyAncestors"
-LABEL="claude"
+LABEL="claude-worker"
 MAX_AGENTS=3
 SESSION="myancestors-agents"
 WORKTREE_BASE=".claude/worktrees"
