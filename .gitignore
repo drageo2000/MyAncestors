@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+mcp-server.log
+starter.md
+myancestors-guide.jsx
 
 # debug
 npm-debug.log*
@@ -39,3 +42,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma
