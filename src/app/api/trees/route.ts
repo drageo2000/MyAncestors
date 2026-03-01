@@ -21,7 +21,14 @@ export async function POST(req: NextRequest) {
   if (!userId) return unauthorized();
 
   const body = await req.json();
-  const { name, rootFirstName, rootLastName } = body;
+  const {
+    name,
+    rootFirstName,
+    rootLastName,
+    rootBirthDate,
+    rootBirthPlace,
+    rootGender,
+  } = body;
 
   if (!name) return err("name is required");
 
@@ -44,6 +51,9 @@ export async function POST(req: NextRequest) {
           treeId: newTree.id,
           firstName: rootFirstName,
           lastName: rootLastName,
+          ...(rootBirthDate ? { birthDate: new Date(rootBirthDate) } : {}),
+          ...(rootBirthPlace ? { birthPlace: rootBirthPlace } : {}),
+          ...(rootGender ? { gender: rootGender } : {}),
         },
       });
     }
