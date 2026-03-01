@@ -46,7 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ per
     id: r.id,
     source: r.personAId,
     target: r.personBId,
-    type: r.type,
+    data: { relType: r.type },
   }));
 
   return ok({ nodes, edges });

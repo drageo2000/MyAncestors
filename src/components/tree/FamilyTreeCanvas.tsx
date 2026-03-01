@@ -12,10 +12,14 @@ import {
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import dagre from "@dagrejs/dagre";
 import PersonNode from "./PersonNode";
 import AddPersonModal from "./AddPersonModal";
 
 const nodeTypes = { personNode: PersonNode };
+
+const NODE_WIDTH = 160;
+const NODE_HEIGHT = 120;
 
 type PersonSummary = { id: string; firstName: string; lastName: string };
 
@@ -25,16 +29,69 @@ type ModalConfig = {
   relationshipType?: "parent" | "child" | "spouse";
 };
 
-export default function FamilyTreeCanvas() {
+function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
+  if (nodes.length === 0) return nodes;
+
+  const g = new dagre.graphlib.Graph();
+  g.setDefaultEdgeLabel(() => ({}));
+  g.setGraph({ rankdir: "TB", ranksep: 100, nodesep: 60 });
+
+  nodes.forEach((node) => {
+    g.setNode(node.id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  });
+
+  edges.forEach((edge) => {
+    const relType = (edge.data as { relType?: string } | undefined)?.relType;
+    // Only PARENT_OF edges drive the hierarchical layout
+    if (relType === "PARENT_OF") {
+      g.setEdge(edge.source, edge.target);
+    }
+  });
+
+  dagre.layout(g);
+
+  return nodes.map((node) => {
+    const n = g.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: (n?.x ?? 0) - NODE_WIDTH / 2,
+        y: (n?.y ?? 0) - NODE_HEIGHT / 2,
+      },
+    };
+  });
+}
+
+function styleEdges(edges: Edge[]): Edge[] {
+  return edges.map((edge) => {
+    const relType = (edge.data as { relType?: string } | undefined)?.relType;
+    if (relType === "SPOUSE_OF") {
+      return {
+        ...edge,
+        style: { strokeDasharray: "6 3", stroke: "#d97706", strokeWidth: 2 },
+        label: "spouse",
+        labelStyle: { fontSize: 10, fill: "#d97706" },
+      };
+    }
+    return {
+      ...edge,
+      style: { stroke: "#78716c", strokeWidth: 2 },
+    };
+  });
+}
+
+interface Props {
+  rootPersonId: string | null;
+  treeId: string | null;
+}
+
+export default function FamilyTreeCanvas({ rootPersonId, treeId }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [treeId, setTreeId] = useState<string | null>(null);
-  const [rootPersonId, setRootPersonId] = useState<string | null>(null);
   const [persons, setPersons] = useState<PersonSummary[]>([]);
-
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState<ModalConfig>({});
 
@@ -59,6 +116,7 @@ export default function FamilyTreeCanvas() {
           setError(json.error);
           return;
         }
+        const rawEdges = json.data.edges as Edge[];
         const enhanced = (json.data.nodes as Node[]).map((node) => ({
           ...node,
           data: {
@@ -83,8 +141,10 @@ export default function FamilyTreeCanvas() {
               ),
           },
         }));
-        setNodes(enhanced);
-        setEdges(json.data.edges as Edge[]);
+        const layoutedNodes = applyDagreLayout(enhanced, rawEdges);
+        const styledEdges = styleEdges(rawEdges);
+        setNodes(layoutedNodes);
+        setEdges(styledEdges);
       } catch {
         setError("Failed to load family tree.");
       }
@@ -94,30 +154,19 @@ export default function FamilyTreeCanvas() {
 
   useEffect(() => {
     async function init() {
+      if (!rootPersonId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
+      setError(null);
       try {
-        const treesRes = await fetch("/api/trees");
-        const treesJson = await treesRes.json();
-        if (!treesJson.data?.length) {
-          setError("No family tree found. Create one to get started.");
-          return;
+        if (treeId) {
+          const personsRes = await fetch(`/api/persons?treeId=${treeId}`);
+          const personsJson = await personsRes.json();
+          setPersons(personsJson.data ?? []);
         }
-        const tid: string = treesJson.data[0].id;
-        setTreeId(tid);
-
-        const personsRes = await fetch(`/api/persons?treeId=${tid}`);
-        const personsJson = await personsRes.json();
-        const allPersons: PersonSummary[] = personsJson.data ?? [];
-        setPersons(allPersons);
-
-        if (!allPersons.length) {
-          setError("No persons in tree yet. Add someone to get started.");
-          return;
-        }
-
-        const rootId = allPersons[0].id;
-        setRootPersonId(rootId);
-        await loadGraph(rootId);
+        await loadGraph(rootPersonId);
       } catch {
         setError("Failed to load family tree.");
       } finally {
@@ -125,7 +174,7 @@ export default function FamilyTreeCanvas() {
       }
     }
     init();
-  }, [loadGraph]);
+  }, [rootPersonId, treeId, loadGraph]);
 
   const handleModalSuccess = useCallback(async () => {
     if (!treeId || !rootPersonId) return;
@@ -149,6 +198,29 @@ export default function FamilyTreeCanvas() {
     return (
       <div className="flex h-full items-center justify-center text-red-400">
         {error}
+      </div>
+    );
+  }
+
+  // Empty tree state: tree exists but has no persons yet
+  if (!rootPersonId || nodes.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center bg-stone-50">
+        <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm max-w-sm">
+          <div className="mb-4 text-5xl">🌱</div>
+          <h2 className="mb-2 text-xl font-semibold text-stone-800">
+            Start your family tree
+          </h2>
+          <p className="mb-6 text-stone-500 text-sm">
+            Add yourself to begin mapping your family history.
+          </p>
+          <a
+            href="/onboarding"
+            className="inline-block rounded-lg bg-amber-500 px-5 py-2 text-sm font-medium text-white hover:bg-amber-600 transition-colors"
+          >
+            Add first family member
+          </a>
+        </div>
       </div>
     );
   }
