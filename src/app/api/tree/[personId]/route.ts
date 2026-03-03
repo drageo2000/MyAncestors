@@ -18,7 +18,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ per
   // Fetch all persons in the tree (not deleted)
   const persons = await db.person.findMany({
     where: { treeId: rootPerson.treeId, deletedAt: null },
-    select: { id: true, firstName: true, lastName: true, birthDate: true, deathDate: true, profilePhotoUrl: true },
+    select: { id: true, firstName: true, lastName: true, birthDate: true, deathDate: true, profilePhotoUrl: true, deceased: true },
   });
 
   // Fetch all relationships in the tree
@@ -38,6 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ per
       birthDate: p.birthDate,
       deathDate: p.deathDate,
       profilePhotoUrl: p.profilePhotoUrl,
+      deceased: p.deceased,
       isRoot: p.id === personId,
     },
   }));
