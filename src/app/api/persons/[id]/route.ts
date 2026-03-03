@@ -48,6 +48,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       gender: body.gender,
       bio: body.bio,
       profilePhotoUrl: body.profilePhotoUrl,
+      deceased: body.deceased !== undefined ? body.deceased : undefined,
     },
   });
 

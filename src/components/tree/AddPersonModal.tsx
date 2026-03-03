@@ -37,6 +37,7 @@ export default function AddPersonModal({
   const [selectedRelatedPersonId, setSelectedRelatedPersonId] = useState(
     relatedPersonId ?? ""
   );
+  const [deceased, setDeceased] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [existingOtherParent, setExistingOtherParent] = useState<PersonSummary | null>(null);
@@ -49,6 +50,7 @@ export default function AddPersonModal({
       setBirthDate("");
       setBirthPlace("");
       setGender("UNKNOWN");
+      setDeceased(false);
       setRelationshipType(defaultRelationType ?? "child");
       setSelectedRelatedPersonId(relatedPersonId ?? "");
       setError(null);
@@ -110,6 +112,7 @@ export default function AddPersonModal({
           birthDate: birthDate || undefined,
           birthPlace: birthPlace.trim() || undefined,
           gender,
+          deceased,
         }),
       });
       const personJson = await personRes.json();
@@ -322,6 +325,17 @@ export default function AddPersonModal({
               <option value="OTHER">Other</option>
             </select>
           </div>
+
+          {/* Deceased */}
+          <label className="flex items-center gap-2.5 cursor-pointer rounded-lg border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-700 hover:bg-stone-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={deceased}
+              onChange={(e) => setDeceased(e.target.checked)}
+              className="h-4 w-4 rounded border-stone-300 accent-amber-500"
+            />
+            Deceased
+          </label>
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 

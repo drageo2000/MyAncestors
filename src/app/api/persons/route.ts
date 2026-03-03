@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!userId) return unauthorized();
 
   const body = await req.json();
-  const { treeId, firstName, lastName, birthDate, deathDate, birthPlace, gender, bio } = body;
+  const { treeId, firstName, lastName, birthDate, deathDate, birthPlace, gender, bio, deceased } = body;
 
   if (!treeId || !firstName || !lastName) {
     return err("treeId, firstName, and lastName are required");
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
       birthPlace,
       gender,
       bio,
+      deceased: deceased ?? false,
     },
   });
 

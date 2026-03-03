@@ -11,6 +11,7 @@ type PersonNodeData = {
   birthDate?: string;
   deathDate?: string;
   profilePhotoUrl?: string;
+  deceased?: boolean;
   isRoot?: boolean;
   personLinkBase?: string;
   onAddParent?: () => void;
@@ -25,6 +26,7 @@ export default function PersonNode({ id, data }: NodeProps) {
     birthDate,
     deathDate,
     profilePhotoUrl,
+    deceased,
     isRoot,
     personLinkBase = "/person",
     onAddParent,
@@ -54,10 +56,16 @@ export default function PersonNode({ id, data }: NodeProps) {
       <Handle type="target" position={Position.Left} id="left" style={{ top: "50%" }} />
       <Link href={`${personLinkBase}/${id}`}>
         <div
-          className={`flex flex-col items-center gap-2 rounded-2xl border bg-white px-4 py-3 shadow-sm w-36 cursor-pointer hover:shadow-md transition-shadow ${
+          className={`relative overflow-hidden flex flex-col items-center gap-2 rounded-2xl border bg-white px-4 py-3 shadow-sm w-36 cursor-pointer hover:shadow-md transition-shadow ${
             isRoot ? "border-amber-400 ring-2 ring-amber-200" : "border-stone-200"
           }`}
         >
+          {deceased && (
+            <div
+              className="absolute top-0 right-0 w-5 h-5"
+              style={{ background: "linear-gradient(225deg, #000 50%, transparent 50%)" }}
+            />
+          )}
           {profilePhotoUrl ? (
             <Image
               src={profilePhotoUrl}

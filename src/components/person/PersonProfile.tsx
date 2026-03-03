@@ -25,6 +25,7 @@ interface PersonWithRelations {
   bio: string | null;
   profilePhotoUrl: string | null;
   gender: string;
+  deceased: boolean;
   relationshipsAsA: { type: string; personB: RelatedPerson }[];
   relationshipsAsB: { type: string; personA: RelatedPerson }[];
   photoPersons: { photo: { id: string; url: string; caption: string | null } }[];
@@ -52,6 +53,8 @@ export default function PersonProfile({
   const router = useRouter();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deceased, setDeceased] = useState(person.deceased);
+  const [savingDeceased, setSavingDeceased] = useState(false);
 
   const backPath = linkBase === "/demo/person" ? "/demo" : "/tree";
 
@@ -73,6 +76,18 @@ export default function PersonProfile({
     ...person.relationshipsAsA.filter((r) => r.type === "SPOUSE_OF").map((r) => r.personB),
     ...person.relationshipsAsB.filter((r) => r.type === "SPOUSE_OF").map((r) => r.personA),
   ];
+
+  async function toggleDeceased(value: boolean) {
+    setSavingDeceased(true);
+    setDeceased(value);
+    await fetch(`${apiBase}/${person.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deceased: value }),
+    });
+    setSavingDeceased(false);
+    router.refresh();
+  }
 
   async function setProfilePhoto(url: string) {
     await fetch(`${apiBase}/${person.id}`, {
@@ -143,6 +158,18 @@ export default function PersonProfile({
             {person.deathDate && <span>Died: {fmt(person.deathDate)}</span>}
             {person.birthPlace && <span>From: {person.birthPlace}</span>}
           </div>
+          {!isDemo && (
+            <label className="mt-3 inline-flex items-center gap-2 cursor-pointer text-sm text-stone-600">
+              <input
+                type="checkbox"
+                checked={deceased}
+                disabled={savingDeceased}
+                onChange={(e) => toggleDeceased(e.target.checked)}
+                className="h-4 w-4 rounded border-stone-300 accent-amber-500"
+              />
+              Deceased
+            </label>
+          )}
         </div>
       </div>
 
