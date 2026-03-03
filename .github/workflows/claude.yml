@@ -17,8 +17,10 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
+      id-token: write
     if: github.event.label.name == 'claude-worker'
     steps:
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          label_trigger: claude-worker
