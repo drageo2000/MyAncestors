@@ -23,6 +23,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+      - name: Validate Anthropic API key
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" https://api.anthropic.com/v1/models \
+            -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+            -H "anthropic-version: 2023-06-01")
+          echo "Anthropic API response code: $RESPONSE"
+          if [ "$RESPONSE" != "200" ]; then
+            echo "::error::Anthropic API key validation failed (HTTP $RESPONSE)"
+            exit 1
+          fi
+          echo "API key is valid!"
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
